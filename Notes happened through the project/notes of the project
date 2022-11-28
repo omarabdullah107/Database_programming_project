@@ -1,0 +1,827 @@
+/var/lib/postgres/data/postgresql.conf
+
+
+-- this query to create an index with a btree index type
+CREATE INDEX idx_btree on [table name] USING BTREE ([attribute name]);
+
+-- this query to create an index with a hash index type
+CREATE INDEX idx_hash on [table name] USING HASH ([attribute name]);
+
+-- this query to create an index with a brin index type
+CREATE INDEX idx_brin on [table name] USING BRIN ([attribute name]) WITH (pages_per_range = 128);
+
+-- this command to run pgbench
+$ pgbench -U vm -i -I dtgvpf -i [database-name]
+
+
+-- to see the workload of the query or the database
+$ pgbench -f [file-name] -U vm -t 10000 [database-name] 
+
+
+
+-- to create and index on an attribute in a query to enhance the performance of the query
+CREATE INDEX idx_btree on pgbench_accounts USING BTREE (abalance) ;
+
+
+
+
+-- Run the select-only workload by running this command 
+$ pgbench -b select-only -U vm -t 1000 [database-name]
+
+
+--------------------------------------------------------
+
+- all the needed things will be only on the individual queries.
+what's needed :- 
+
+- record the tps  #before and after the optimization
+- record the average latency   #before and after the optimization
+- obtain the query plan time    #before and after the optimization
+- obtain the query execution time      #before and after the optimization
+probably from the the performance monitoring section
+- determine the most expedient type of index to optimize the query
+run the workload before and after optimizing the queries and record all the needed features before and after optimizing
+- compare the tps 
+- compare the average latency
+- compare the plan time 
+- compare the execution time rates 
+comparing before and after the optimization for each query
+- obtain statistics about the usage of the index is created
+
+-----------------------------------------------------------
+
+Performance monitoring 
+
+
+
+
+Query Execution Time + Query Plan: -
+
+SELECT query, calls, total_plan_time, total_exec_time
+FROM pg_stat_statements
+WHERE calls > 1000
+ORDER BY total_exec_time DESC;
+
+Index Usage: -
+- how many times the index was used. 
+- how many rows were fetched by using the index.
+
+SELECT *
+FROM pg_stat_user_indexes;
+
+------------------------------------------------------------
+
+Part_1: thinking about the attributes that needs indexing for each table for the first part of indexing the database schema in general.
+
+- Using the command $pgbench -b select-only -U vm -t 10000 Project_1_DBP
+---------------------------
+Before optimization:-
+---> latency average = 0.144 ms
+---> tps = 6936.343956 (including connection establishing)
+     tps = 6946.625067 (excluding connections establishing)
+---------------------------
+ADJUSTED:
+---> latency average = 0.148 ms
+---> tps = 6771.151580 (including connection establishing)
+     tps = 6781.134771 (excluding connections establishing)     
+---------------------------
+attributes to be indexed and why:-
+--------------
+actor table :-
+
+actor_id  ,because its a unique key and it will be frequently used in queries specially with the equality operation the index will be used is the b+tree index for having the equality of operation and it can be useful when using ranges between ids for example if a query wants the ids from range to range or > or < or >= or <= of all ranges.
+
+first_name , it might be used in queries the best index to use it will be the b+tree in range searching because the search will be faster and flexible
+
+last_name, it might be used in queries the best index to use it will be the b+tree in range searching because the search will be faster and flexible
+----------------
+payment table:-
+
+
+payment_id , nique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+customer_id, nique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+staff_id, nique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+rental_id, nique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+amount , can be used frequently by users as they could be knowing the amount of payments only, using the btree indexing for flexibilty in searching and for using the range of searching.
+
+
+
+
+
+
+----------------
+language table :-
+
+langauge_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+name , its unique key can be used in queries and a language can have many movies so searching by a language can be useful so using the hash indexing is the suitable indexing method for searching for a film by language name
+-------------------
+store table:-
+
+store_id, unique key that might be used frequently using the b+tree index for flexibility (the range of searching and the direct searching)
+
+manager_staff_id it can be used as a unique key by searching of the manager of the store using the btree because of the flexibilty of using it
+address_id , foreign key, b+tree
+-------------------
+address table:-
+
+address_id , unique key that might be used frequently using the b+tree index for flexibility (the range of searching and the direct searching)
+
+postal_code, unique key , using the brin indexing for having ranges of pages
+
+district, dristrict can be used for searching instead of using addresses its more faster and general than the addresses, using btree will be good as an index for the flexibility of searching.
+
+city_id, foreign key, b+tree
+----------------------
+film_actor table :-
+
+actor_id, foreign key , b+tree indexing 
+film_id, foreign key, b+tree
+
+-------------------------
+country table : -
+
+country_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+country, its unique key can be used in queries and a country can be searcehd by its name in ordered way thats why using hash indexing will be the proper way.
+
+--------------------------
+
+city table:-
+
+city_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+city, its unique key can be used in queries and a city can be searcehd by its name in ordered way thats why using hash indexing will be the proper way.
+
+country_id, foreign key, b+tree
+
+----------------------------
+
+film table:-
+
+film_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+language_id, foreign key, b+tree
+
+title , it could be the most searchable attribute of the film table, using btree for the flexibility of searching , it can be used with hash but i prefer the btree.
+
+release_year, a user can search by years for movies, using hashing would be the best as the year will be the year and by choosing a year the searching will be narrowed down to those movies in that year and it will be in o(1) direct fast search can't be beaten.
+
+rating , can be used for searching , btree is the best for the ranging search and flexibility.
+-------------------------------
+
+film_category table:-
+
+film_id, foreign key ,b+tree
+category_id foreign key, b+tree
+-------------------------------
+
+category table:-
+
+category_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+name, its unique key can be used in queries and a movie can be searcehd by its category name in ordered way thats why using hash indexing will be the proper way.
+------------------------------
+
+inventory table:-
+
+inventory_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+film_id, foreign key , b+tree
+store_id, foreign key, b+tree
+-------------------------------
+staff table:-
+staff_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+address_id, foreign key, b+tree
+store_id, foreign key, b+tree
+
+last_name, it might be used in queries the best index to use it will be the b+tree in range searching because the search will be faster and flexible
+
+first_name, it might be used in queries the best index to use it will be the b+tree in range searching because the search will be faster and flexible
+
+username, searching by username will be common between other users , using btree will be the best fast flexible index to be used for optimization.
+------------------------------
+
+customer table:-
+
+customer_id, unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+store_id, foreign key , b+tree
+address_id, foreign key, b+tree
+
+first_name, it might be used in queries the best index to use it will be the b+tree in range searching because the search will be faster and flexible
+
+last_name, it might be used in queries the best index to use it will be the b+tree in range searching because the search will be faster and flexible
+
+
+------------------------------
+rental table:-
+
+rental_id , unique key that might be frequently used , using the b+tree index for flexibility (the range searching and the direct searching)
+
+inventory_id , foreign key , b+tree
+customer_id, foreign key , b+tree
+staff_id, foreign key , b+tree
+
+
+------------------------------
+---------------------------
+After optimization
+
+---> latency average = 0.095 ms
+---> tps = 10476.788964 (including connection establishing)
+     tps = 10496.874421 (excluding connections establishing)
+
+---------------------------
+
+adjustment optimization
+
+---> latency average = 0.144 ms    -  another run 0.097 ms
+---> tps = 6921.587833 (including connection establishing)  - another run 10294.311483
+     tps = 6933.332931 (excluding connections establishing) - another run 10313.515440
+
+The observation on indexing the general database schema in both tries i did the first one was with using keys as they are unique keys but didnt recognize that they are by default indexed so i did add some other attributes could be used for searching on indices queries the conclusion that the latency average it less than before the optimization and the tps are higher more than before the optimization. 
+
+
+
+------------------------------------------------------------
+part_2: dealing with each query separatly within its own SQL file.
+------------------
+Query_1:-
+
+The indexing will be on the attributes will be frequently used in searching also used in the where, join, order by clauses to have fast better performance in searching.
+
+btree indexing will be used to index the ids attributes used in the query for fast searching and hash indexing will be used for the name and title attributs for better and direct searching.
+
+
+CREATE INDEX idx_cat on category USING BTREE (category_id);
+CREATE INDEX idx_film_cat on film_category USING BTREE (film_id, category_id);
+CREATE INDEX idx_film on film USING BTREE (film_id);
+CREATE INDEX idx_film_title on film USING HASH (title);
+CREATE INDEX idx_cat_name on category USING HASH (name);
+
+
+
+
+Before:
+
+- latency average = 0.905 ms
+- tps = 1105.457515(including connection establishing)
+  tps = 1105.690366(excluding connections establishing)
+- query plan time = 2454.39084000001
+- query execution time =  4568.097105000011
+
+
+After:
+
+- latency average = 0.859 ms
+- tps = 1164.113663(including connection establishing)
+  tps = 1164.437230(excluding connections establishing)
+- query plan time = 5138.898921000019
+- query execution time =  8923.48153700003     
+- index usage:-
+ - how many times index used = 
+ idx_cat = 0
+ idx_film_cat = 20000_
+ idx_film = 20000
+ idx_film_title = 0
+ idx_cat_name = 0
+ - how many rows were fetched = 
+ idx_cat = 0
+ idx_film_cat = 20000
+ idx_film = 20000
+ idx_film_title = 0
+ idx_cat_name = 0
+
+comparison observations: the latency average is less than before optimization that means the indices made the performance of the query better than before, the execution time and the plan time are more than the numbers before the optimization, because of the previous queries took part in the execution time and it's a relation with the latency if the latency is getting less the execution and the total plan will get higher and the opposite.
+
+
+
+------------------
+Query_2:-
+
+
+
+CREATE INDEX idx_ac_id on actor USING BTREE (actor_id);
+CREATE INDEX idx_fiac_id on film_actor USING BTREE (actor_id);
+CREATE INDEX idx_ac_fi on actor USING BTREE (first_name);
+CREATE INDEX idx_ac_la on actor USING BTREE (last_name);
+
+
+
+
+Before:
+
+- latency average = 0.767 ms
+- tps = 1302.961050(including connection establishing)
+  tps = 1303.355980(excluding connections establishing)
+- query plan time = 1659.9974409999975
+- query execution time = 4227.637881999994
+
+
+
+
+
+
+After:
+
+- latency average = 0.732 ms
+- tps = 1365.325416(including connection establishing)
+  tps = 1365.702384(excluding connections establishing)
+- query plan time = 3444.6592329999926
+- query execution time =  8512.890651999987
+- index usage:-
+ - how many times index used = 
+ idx_ac_id = 20000
+ idx_fiac_id = 230000
+ idx_ac_fi = 0
+ idx_ac_la = 0
+ - how many rows were fetched = 
+ idx_ac_id = 20000
+ idx_fiac_id = 0
+ idx_ac_fi = 0
+ idx_ac_la = 0
+			
+
+observations: the tps is higher than the records before the indexing and the avergae latency is less than the before optimization record that means the indices optimized the query performance. 
+Execution time and plan time are higher than the previous records because of the much of indices and queries been executed.
+
+
+
+------------------
+
+- from this query some queries will run it again so they will have another runs next to the previous ones as it was giving not the best result because of the vm and laptop problem to get best results.
+
+Query_3:-
+Before:
+- latency average = 0.276 ms   -  0.334
+- tps = 3621.779552(including connection establishing)   - 2993.679993
+  tps = 3626.851392(excluding connections establishing)  -  2995.291401
+- query plan time = 4893.430174000009           -   38000.079174000115
+- query execution time =  9004.378807999969     -  18878.450572000118
+
+
+
+CREATE INDEX idx_ac3_fi on actor USING BTREE (first_name);
+CREATE INDEX idx_ac3_la on actor USING BTREE (last_name);
+
+
+After:
+- latency average = 0.372 ms   - 0.301
+- tps = 2691.373547(including connection establishing)  - 3316.851890
+  tps = 2693.525979(excluding connections establishing)  - 3319.609409
+- query plan time = 36217.047111000196    -    39259.14364600018
+- query execution time =  18381.54681300006   -   19221.549454000196
+- index usage:-
+ - how many times index used = 
+ idx_ac3_fi = 0
+ idx_ac3_la = 0
+ - how many rows were fetched = 
+ idx_ac3_fi = 0
+ idx_ac3_la = 0
+
+
+
+using btree for this query was a better option more than the hash index because i received more latency with the hash index while my laptop and my fan getting bad and having many processes in the background so having higher latency and low pts
+
+
+------------------
+Query_4:-
+Before:
+- latency average = 1.039 ms  - 
+- tps =  962.240188(including connection establishing)
+  tps = 962.532030(excluding connections establishing)
+- query plan time = 569.4600340000003
+- query execution time =  8061.647313999997
+
+
+
+CREATE INDEX idx_cus_active on customer USING BTREE (active);
+
+
+After:
+- latency average = 1.320 ms
+- tps =  757.781803(including connection establishing)
+  tps = 757.894266(excluding connections establishing)
+- query plan time = 3242.740714999989
+- query execution time =  61516.89225299978
+- index usage:-
+ - how many times index used = 
+ idx_cus_active = 0
+ - how many rows were fetched = 
+ idx_cus_active = 0
+
+
+using btree for this query was a better option more than the hash index because i received more latency with the hash index while my laptop and my fan getting bad and having many processes in the background so having higher latency and low pts. Choosing the active attribute because its not indexed before and searching into the names with active true values will short the time.
+
+
+------------------
+Query_5:-
+Before:
+- latency average = 0.348 ms   - 0.381
+- tps = 2875.517652(including connection establishing)   - 2625.512280
+  tps = 2877.138060(excluding connections establishing)   - 2626.859880
+- query plan time = 659.7282129999995     -   2545.841180999984
+- query execution time = 1470.0787199999977   -   6272.851345999954
+
+
+
+CREATE INDEX idx_customer_act on customer USING HASH (active);
+
+
+
+After:
+- latency average = 0.387 ms   - 0.383
+- tps = 2585.763721(including connection establishing)  - 2610.820562
+  tps = 2587.085707(excluding connections establishing)  - 2612.263790
+- query plan time =  1914.52360599999  -   3200.1621309999796
+- query execution time =  4649.964339999971  -  7865.332640999911
+- index usage:-
+ - how many times index used = 
+ idx_customer_act = 0
+ - how many rows were fetched = 
+ idx_customer_act = 0
+
+
+
+using btree for this query was a better option more than the hash index because i received more latency with the hash index while my laptop and my fan getting bad and having many processes in the background so having higher latency and low pts. Choosing the active attribute because its not indexed before and searching into the names with active true values will short the time.
+
+The less differences because of the use of the indexing and the query is small it doesn't need that much of indexing.
+
+------------------
+Query_6:-
+Before:
+- latency average = 0.805 ms    -  0.620
+- tps = 1242.481334(including connection establishing)  - 1613.001282
+  tps = 1242.786615(excluding connections establishing)  - 1613.510287
+- query plan time = 1822.3133199999993
+- query execution time =  4868.538707000013
+
+
+
+CREATE INDEX idx_rental_cusid on rental USING BTREE (customer_id)
+
+
+
+After:
+- latency average = 0.816 ms   -  0.859
+- tps = 1225.711872(including connection establishing)  - 1163.660691
+  tps = 1226.128241(excluding connections establishing)  -  1163.921212
+- query plan time = 3648.320509000002   -  9040.086571000036
+- query execution time =  9776.473508999987  -  570492.5342019974
+- index usage:-
+ - how many times index used =
+  idx_rental_cusid = 220000
+ - how many rows were fetched =
+  idx_rental_cusid = 0 
+
+
+choosing only the customer_id from rental as a reference key for more optimization of the searching the other attributes already indexed within the general schema
+
+so appearntly that the new run of the workload is still affected by the background processes of the laptop and the previous reads are better from the average latency and the tps.
+
+------------------
+Query_7:-
+Before:
+- latency average = 13.460 ms
+- tps = 74.291488(including connection establishing)
+  tps = 74.292835(excluding connections establishing)
+- query plan time =  7185.00985600002
+- query execution time =  439503.9423779982
+
+
+
+CREATE INDEX idx_cus_lastname on customer USING BTREE (last_name)
+
+
+After:
+- latency average = 13.451 ms
+- tps = 74.345534(including connection establishing)
+  tps = 74.346582(excluding connections establishing)
+- query plan time = 9040.086571000036
+- query execution time =  570492.5342019974
+- index usage:-
+ - how many times index used = 
+ idx_cus_lastname = 0
+ - how many rows were fetched = 
+  idx_cus_lastname = 0
+
+
+
+using btree for faster search , choosing this attribute to enhace the performance of searching of a last name doesnt start with A some observation 
+
+------------------
+Query_8:-
+Before:
+- latency average = 28.661 ms
+- tps = 34.890960(including connection establishing)
+  tps = 34.891294(excluding connections establishing)
+- query plan time = 8156.499124999994
+- query execution time =  346762.5801789981
+
+
+CREATE INDEX idx_pay_am on payment USING BTREE (amount);
+
+
+
+After:
+- latency average = 28.656 ms
+- tps = 34.896281(including connection establishing)
+  tps = 34.896651(excluding connections establishing)
+- query plan time = 14324.95464799998
+- query execution time =  624896.9144539982
+- index usage:-
+ - how many times index used = 
+ payment_p2022_07_amount_idx1 = 0
+ - how many rows were fetched = 
+  payment_p2022_07_amount_idx1 = 0
+
+
+choosing btree for better performance, although i am suffering from the latency of resulting the workload for the bad performance of my laptop now and the lack of the time but appearntly that the latency time is getting reduce a bit and the tps is getting increased a bit 
+
+
+------------------
+Query_9:-
+Before:
+- latency average = 8.392 ms
+- tps = 119.163313(including connection establishing)
+  tps = 119.166371(excluding connections establishing)
+- query plan time = 10660.233310000007
+- query execution time =  70158.55351999965
+
+
+
+CREATE INDEX idx_cat_nname on category USING BTREE (name);
+CREATE INDEX idx_f_t on film USING BTREE (title);
+
+
+After:
+- latency average = 8.260 ms
+- tps = 121.059553(including connection establishing)
+  tps = 121.062706(excluding connections establishing)
+- query plan time = 21168.437660999974
+- query execution time =  139393.59151199932
+- index usage:-
+ - how many times index used = 
+ idx_cat_nname = 0
+ idx_f_t  = 0
+ - how many rows were fetched = 
+ idx_cat_nname = 0
+ idx_f_t  = 0
+
+
+choosing both the name and the title for fast searching and for fast grouping by them using the btree indexing 
+observation that the latency is less than before the optimization and the tps is increased more than the records before the optimization.
+
+------------------
+Query_10:-
+Before:
+- latency average = 42.498 ms
+- tps = 23.530621(including connection establishing)
+  tps = 23.530737(excluding connections establishing)
+- query plan time =  791.8515389999978
+- query execution time =  422624.6532269988
+
+
+CREATE INDEX idx_film_des on film USING BTREE (description);
+
+
+After:
+- latency average = 42.175 ms
+- tps =  23.710695(including connection establishing)
+  tps = 23.710839(excluding connections establishing)
+- query plan time = 1442.7413679999993
+- query execution time =  842299.994754997
+- index usage:-
+ - how many times index used = 
+ idx_film_des =0
+ - how many rows were fetched = 
+ idx_film_des = 0
+
+
+choosing the description because its the attribute that is used and it should be indexed for a better search performance using the btree indexing for flexibility .
+
+------------------
+Query_11:-
+Before:
+- latency average = 18.473 ms
+- tps = 54.134487(including connection establishing)
+  tps = 54.135152(excluding connections establishing)
+- query plan time = 9291.371429000043
+- query execution time =  172146.57924500003
+
+
+
+CREATE INDEX cat_name on category USING BTREE (name);
+
+
+
+After:
+- latency average = 18.326 ms
+- tps =  54.567714(including connection establishing)
+  tps = 54.568343(excluding connections establishing)
+- query plan time =  18658.233831000034
+- query execution time =  342951.0742019988
+- index usage:-
+ - how many times index used = 
+ cat_name = 0
+ - how many rows were fetched = 
+ cat_name = 0
+
+
+
+
+------------------
+Query_12:-
+Before:
+- latency average = 0.322 ms
+- tps = 3101.563002(including connection establishing)
+  tps = 3103.752601(excluding connections establishing)
+- query plan time = 522.520316000001
+- query execution time =  1302.234326
+
+
+CREATE INDEX act_lastname on actor USING BTREE (last_name);
+
+
+
+After:
+- latency average = 0.269 ms
+- tps = 3711.426540(including connection establishing)
+  tps = 3715.107035(excluding connections establishing)
+- query plan time = 891.524494999995
+- query execution time =  2179.0754710000065
+- index usage:-
+ - how many times index used = 
+ act_lastname = 0
+ - how many rows were fetched = 
+ act_lastname = 0
+
+Choosing the last_name attribute for better performance using the btree indexing for better performance and the latency is less than the previous records now with the enhancing of the laptop and the less background work also the tps is high and the query plan time and the execution plan time is more higher than how it was before the optimization so its a relation when the latency less the tps high and the opposite same with the execution time and the total plan when lateny less they are high also with the tps and the execution time and the total plan are the same in progress high or low.
+
+
+------------------
+Query_13:-
+Before:
+- latency average = 0.292 ms
+- tps = 3428.495137(including connection establishing)
+  tps = 3431.198995(excluding connections establishing)
+- query plan time = 1614.8444290000043
+- query execution time =  160.5452349999996
+
+
+CREATE INDEX f_t on film USING BTREE (title);
+
+
+
+After:
+- latency average = 0.310 ms
+- tps =  3223.036820(including connection establishing)
+  tps = 3225.533245(excluding connections establishing)
+- query plan time = 3071.5853139999967
+- query execution time =  295.31406100000095
+- index usage:-
+ - how many times index used = 
+ f_t = 10000
+ - how many rows were fetched = 
+ f_t = 10000
+
+choosing the film title for enhacing the performance of searching.using btree indexing 
+
+
+------------------
+Query_14:-
+Before:
+- latency average = 0.237 ms
+- tps =  4218.210181(including connection establishing)
+  tps = 4221.825558(excluding connections establishing)
+- query plan time = 213.1614969999997
+- query execution time =  735.7608269999961
+
+
+
+CREATE INDEX ACT_FIRST ON actor USING BTREE (first_name);
+CREATE INDEX ACT_LAST ON actor USING BTREE (last_name);
+
+
+
+After:
+- latency average = 0.209 ms
+- tps = 4788.645308(including connection establishing)
+  tps = 4793.928648(excluding connections establishing)
+- query plan time = 702.378650000001
+- query execution time =  2193.592946999986
+- index usage:-
+ - how many times index used = 
+ act_first = 0
+ act_last = 0
+ - how many rows were fetched = 
+ act_first = 0
+ act_last = 0
+
+the query doesn't need an index but using an index the first_name and last_name will output the records of the after workload as how they are shown
+
+
+------------------
+Query_15:-
+Before:
+- latency average = 0.191 ms
+- tps = 5223.050712(including connection establishing)
+  tps = 5228.828853(excluding connections establishing)
+- query plan time =  391.00061599999935
+- query execution time =  181.5933709999991
+
+
+
+CREATE INDEX cuss_acti on customer USING HASH (active)
+
+
+After:
+- latency average = 0.186 ms
+- tps =  5372.393612(including connection establishing)
+  tps = 5380.301130(excluding connections establishing)
+- query plan time = 811.0736539999978
+- query execution time =  349.0668889999965
+- index usage:-
+ - how many times index used = 
+ cuss_acti = 10000
+ - how many rows were fetched = 
+ cuss_acti = 0
+
+
+
+
+------------------
+Query_16:-
+Before:
+- latency average = 0.491 ms
+- tps = 2035.071158(including connection establishing)
+  tps = 2035.819817(excluding connections establishing)
+- query plan time = 1682.0101279999976
+- query execution time =  1487.0767580000038
+
+
+CREATE INDEX add_dis on address USING BTREE (district);
+
+
+
+After:
+- latency average = 0.405 ms
+- tps = 2466.931075(including connection establishing)
+  tps = 2468.466151(excluding connections establishing)
+- query plan time = 3270.108076999999
+- query execution time =  2980.051892999998
+- index usage:-
+ - how many times index used = 
+ add_dis = 10000
+ - how many rows were fetched = 
+ add_dis = 0
+
+
+
+
+------------------
+Query_17:-
+Before:
+- latency average = 0.411 ms
+- tps = 2434.035790(including connection establishing)
+  tps = 2435.146060(excluding connections establishing)
+- query plan time =  410.07169299999885
+- query execution time =  2126.4497130000054
+
+
+CREATE INDEX lan_id on language USING BTREE (language_id);
+CREATE INDEX fi_ti on film USING BTREE (title);
+
+
+
+After:
+- latency average = 0.546 ms
+- tps = 1831.142199(including connection establishing)
+  tps = 1831.828058(excluding connections establishing)
+- query plan time = 1898.7749969999911
+- query execution time =  11295.563929999978
+- index usage:-
+ - how many times index used = 
+ fi_ti = 0
+ lan_id = 0
+ - how many rows were fetched = 
+ fi_ti = 0
+ lan_id = 0
+
+
+
+------------------
+
+
+
+
+
+
+
+
+
